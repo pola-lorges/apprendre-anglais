@@ -116,3 +116,9 @@ textarea { width: 100%; min-height: 60px; padding: 8px; border: 2px solid var(--
 .day-item.eval { font-weight: 600; background: #fff8e1; }
 .day-item.eval.active { background: var(--primary-soft); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2430; color: #fff; padding: 10px 18px; border-radius: 10px; z-index: 50; max-width: 90vw; }
+.tr-panel { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: .9rem; }
+.tr-block { margin-bottom: 8px; }
+.tr-block ul { margin: 4px 0 0; padding-left: 18px; }
+.tr-panel .alt { color: var(--muted); }
+.tr-panel mark { background: #fff3bf; padding: 0 2px; }
+.tab-help { margin: 0 0 14px; padding: 10px 14px; background: var(--primary-soft); border-radius: 8px; font-size: .92rem; }

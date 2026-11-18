@@ -84,6 +84,7 @@
   let current = 1, tab = "lesson", view = { type: "day", n: 1 };
   const TABS = [["lesson", "Leçon"], ["quiz", "Exercices"], ["listen", "Écouter"], ["cloze", "Texte à trous"], ["order", "Ordre des mots"], ["dictation", "Dictée"], ["vocab", "Mots de l'audio"]];
   const WB_TABS = TABS.slice(0, 3);
+  const DICTATION_HELP = "<b>À quoi sert la dictée ?</b> Tu écoutes une phrase de l'audio et tu l'écris en entier : tu travailles la compréhension orale et l'orthographe.<br><b>Comment faire :</b> clique sur 🔊 pour écouter (🐢 pour une lecture plus lente), écris ce que tu entends, puis clique sur « Vérifier ». Les mots justes s'affichent en vert, les mots manqués ou faux en rouge. Cet exercice est un entraînement : il ne compte pas dans la validation du jour.";
 
   // Une évaluation toutes les 5 leçons ; la dernière est l'évaluation finale.
   const PASS = 70;
@@ -349,7 +350,7 @@
 
   // ---------- Onglet : Écouter ----------
   function renderListen(day, box) {
-    let ti = 0, hidden = false, loop = false, rate = 1;
+    let ti = 0, hidden = true, loop = false, rate = 1;
     const draw = () => {
       const tr = day.tracks[ti];
       box.innerHTML = `
@@ -357,7 +358,7 @@
           <h2>Écoute</h2>
           <p class="hint">${day.kind === "workbook"
             ? "Pas de transcription pour le Workbook : écoute la piste puis fais l'exercice correspondant dans le PDF."
-            : "Écoute d'abord sans lire, puis affiche le texte. Clique sur une phrase pour la réécouter."}</p>
+            : "Le texte est flouté : écoute d'abord sans lire, puis clique sur « Afficher le texte ». Clique sur une phrase pour la réécouter."}</p>
           <div class="track-select">${day.tracks.map((t, i) => `<button class="btn small ${i === ti ? "on" : ""}" data-ti="${i}">${esc(t.label)}</button>`).join("")}</div>
           <div class="player">
             <button class="btn primary" id="pp">▶ Lecture</button>
@@ -433,7 +434,8 @@
     box.innerHTML = `
       <div class="card">
         <h2>Texte à trous</h2>
-        <p class="hint">Écoute chaque phrase et complète les mots manquants. ${newSetBtn(key)}</p>
+        <p class="tab-help"><b>À quoi sert cet exercice ?</b> Tu écoutes des phrases de l'audio et tu retrouves les mots manquants : tu travailles la compréhension orale, l'orthographe et le repérage des mots clés.<br><b>Comment faire :</b> clique sur 🔊 pour écouter la phrase, puis écris le mot qui manque dans chaque case (la touche Entrée passe à la case suivante). Clique sur « Vérifier » : vert = bon mot, rouge = à corriger. « Voir les réponses » affiche les mots attendus. C'est un entraînement : il ne compte pas dans la validation du jour.</p>
+        <p class="hint">${newSetBtn(key)}</p>
         ${items.length ? model.map((m, k) => `
           <div class="ex"><div class="ex-row"><span class="num">${k + 1}.</span>
             <div class="ex-body">${m.tokens.map((t, i) => (m.blanks.has(i) ? `<input class="blank" data-k="${k}" data-i="${i}" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:${Math.max(70, t.length * 13)}px">` : esc(t))).join("")}</div>
@@ -475,7 +477,8 @@
       box.innerHTML = `
         <div class="card">
           <h2>Remets les mots dans l'ordre</h2>
-          <p class="hint">Clique sur les mots pour reconstruire la phrase entendue. ${newSetBtn(key)}</p>
+          <p class="tab-help"><b>À quoi sert cet exercice ?</b> Il t'entraîne à construire des phrases anglaises correctes : l'ordre des mots (sujet + verbe + complément, place des adverbes…) n'est pas toujours le même qu'en français.<br><b>Comment faire :</b> clique sur les mots mélangés (en bas) pour les placer dans l'ordre dans la zone en pointillés (en haut). Clique sur un mot placé pour le remettre en bas. Le bouton 🔊 joue la phrase pour t'aider. Puis clique sur « Vérifier » : vert = bonne phrase, rouge = à corriger. C'est un entraînement : il ne compte pas dans la validation du jour.</p>
+          <p class="hint">${newSetBtn(key)}</p>
           ${items.length ? model.map((m, k) => `
             <div class="ex" data-k="${k}">
               <div class="ex-row"><span class="num">${k + 1}.</span>
@@ -537,7 +540,8 @@
     box.innerHTML = `
       <div class="card">
         <h2>Dictée</h2>
-        <p class="hint">Écoute la phrase (autant de fois que nécessaire) et écris ce que tu entends. ${newSetBtn(key)}</p>
+        <p class="tab-help">${DICTATION_HELP}</p>
+        <p class="hint">${newSetBtn(key)}</p>
         ${items.length ? items.map((it, k) => `
           <div class="ex" data-k="${k}">
             <div class="ex-row"><span class="num">${k + 1}.</span>
@@ -590,26 +594,73 @@
     box.innerHTML = `
       <div class="card">
         <h2>Vocabulaire du jour</h2>
-        <p class="hint">Clique sur 🔊 pour entendre le mot dans sa phrase, sur « Traduire » pour le dictionnaire, puis marque ceux que tu connais.</p>
+        <p class="hint">Clique sur 🔊 pour entendre le mot dans sa phrase, sur « Traduire » pour la traduction et les contextes d'usage, puis marque ceux que tu connais.</p>
         <div class="vocab">${words.map((v) => `
           <div class="vcard ${store.known[v.w] ? "known" : ""}" data-w="${esc(v.w)}">
             <strong>${esc(v.w)}</strong>
             <p>« ${esc(v.seg.x)} »</p>
             <div class="actions">
               <button class="btn small play">🔊</button>
-              <a class="btn small" target="_blank" rel="noopener noreferrer" href="https://www.wordreference.com/enfr/${encodeURIComponent(v.w)}">Traduire</a>
+              <button class="btn small tr">Traduire</button>
               <button class="btn small know">${store.known[v.w] ? "✓ Connu" : "Je connais"}</button>
             </div>
+            <div class="tr-panel" hidden></div>
           </div>`).join("") || '<div class="empty">Pas de vocabulaire ce jour-là.</div>'}</div>
       </div>`;
     box.querySelectorAll(".vcard").forEach((c) => {
       const v = freq.get(c.dataset.w);
       c.querySelector(".play").onclick = () => { playRange(v.tr, v.seg.t, v.seg.e); audio.playbackRate = 1; touch(); };
-      c.querySelector(".know").onclick = () => {
+      c.querySelector(".know").onclick = (e) => {
         if (store.known[v.w]) delete store.known[v.w]; else store.known[v.w] = true;
-        save(); renderVocab(day, box);
+        save();
+        c.classList.toggle("known", !!store.known[v.w]);
+        e.target.textContent = store.known[v.w] ? "✓ Connu" : "Je connais";
+      };
+      const panel = c.querySelector(".tr-panel");
+      c.querySelector(".tr").onclick = async () => {
+        panel.hidden = !panel.hidden;
+        if (panel.hidden || panel.dataset.loaded) return;
+        panel.dataset.loaded = "1";
+        panel.textContent = "Chargement…";
+        try { panel.innerHTML = await explainWord(v.w, v.seg.x); }
+        catch { panel.dataset.loaded = ""; panel.innerHTML = `Traduction indisponible (connexion requise). <a target="_blank" rel="noopener noreferrer" href="https://www.wordreference.com/enfr/${encodeURIComponent(v.w)}">Ouvrir WordReference</a>`; }
       };
     });
+  }
+
+  // Traduction (MyMemory) et définitions (dictionaryapi.dev) : API publiques, connexion requise.
+  const apiCache = {};
+  const decode = (s) => new DOMParser().parseFromString(s, "text/html").documentElement.textContent;
+  async function translate(text) {
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`);
+    if (!r.ok) throw new Error("translate");
+    const j = await r.json();
+    const main = decode(j.responseData.translatedText);
+    const alts = [...new Set((j.matches || []).map((m) => decode(m.translation).toLowerCase()))].filter((t) => t && t !== main.toLowerCase()).slice(0, 3);
+    return { main, alts };
+  }
+  async function definitions(word) {
+    const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if (!r.ok) return [];
+    const entries = await r.json();
+    const out = [];
+    entries.forEach((en) => en.meanings.forEach((m) => {
+      const d = m.definitions[0];
+      if (d && out.length < 4 && !out.some((o) => o.pos === m.partOfSpeech)) out.push({ pos: m.partOfSpeech, def: d.definition, ex: d.example || "" });
+    }));
+    return out;
+  }
+  async function explainWord(word, sentence) {
+    if (apiCache[word]) return apiCache[word];
+    const [wt, st, defs] = await Promise.all([translate(word), translate(sentence), definitions(word).catch(() => [])]);
+    const hl = esc(sentence).replace(new RegExp(`(${word})`, "i"), "<mark>$1</mark>");
+    const defsFr = await Promise.all(defs.map((d) => translate(d.def).then((t) => t.main).catch(() => "")));
+    const html = `
+      <div class="tr-block"><b>Traduction :</b> ${esc(wt.main)}${wt.alts.length ? ` <span class="alt">(aussi : ${wt.alts.map(esc).join(", ")})</span>` : ""}</div>
+      <div class="tr-block"><b>Dans l'audio :</b> ${hl}<br><span class="alt">→ ${esc(st.main)}</span><br><span class="alt">Ici, « ${esc(word)} » prend le sens qui correspond à cette phrase.</span></div>
+      ${defs.length ? `<div class="tr-block"><b>Autres contextes :</b><ul>${defs.map((d, i) => `<li><i>${esc(d.pos)}</i> — ${esc(d.def)}${defsFr[i] ? `<br><span class="alt">${esc(defsFr[i])}</span>` : ""}${d.ex ? `<br><span class="alt">Ex. : « ${esc(d.ex)} »</span>` : ""}</li>`).join("")}</ul></div>` : '<div class="tr-block alt">Pas d\'autre contexte trouvé pour ce mot.</div>'}`;
+    apiCache[word] = html;
+    return html;
   }
 
   // ---------- Démarrage ----------
