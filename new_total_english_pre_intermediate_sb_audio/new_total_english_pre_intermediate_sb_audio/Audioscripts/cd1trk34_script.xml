@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<data>
+<text sect=""><![CDATA[<p align="left">[00:00]<b>CD1 Track 34</b></p>]]></text>
+<text sect=""><![CDATA[<p align="left"><b>A = Assistant, C = Customer</b></p>]]></text>
+<text sect=""><![CDATA[<p align="left"><b>P1 = Passenger1, P2 = Passenger 2</b></p>]]></text>
+<text sect=""><![CDATA[<p align="left">[00:04]<b>1</b></p>]]></text>
+<text sect="C:"><![CDATA[<p align="left">[00:05]Can you tell me if you have this jacket in medium?</p>]]></text>
+<text sect="A:"><![CDATA[<p align="left">[00:09]Yes, certainly, I’ll just have a look for you.</p>]]></text>
+<text sect=""><![CDATA[<p align="left">[00:13]<b>2</b></p>]]></text>
+<text sect="C:"><![CDATA[<p align="left">[00:14]Could you tell me how much it is please?</p>]]></text>
+<text sect="A:"><![CDATA[<p align="left">[00:17]Yes, of course. It’s fifty-five dollars.</p>]]></text>
+<text sect=""><![CDATA[<p align="left">[00:21]<b>3</b></p>]]></text>
+<text sect="C:"><![CDATA[<p align="left">[00:22.9]Is it OK if I pay by credit card?</p>]]></text>
+<text sect="A:"><![CDATA[<p align="left">[00:25.4]Yes, that’s fine.</p>]]></text>
+<text sect=""><![CDATA[<p align="left">[00:28]<b>4</b></p>]]></text>
+<text sect="P1:"><![CDATA[<p align="left">[00:30]Do you mind if I read it?</p>]]></text>
+<text sect="P2:"><![CDATA[<p align="left">[00:31.8]No, that’s fine. Go ahead.</p>]]></text>
+</data>

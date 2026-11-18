@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perfect English – Un jour à la fois</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="menuBtn" class="icon-btn" aria-label="Menu">☰</button>
+    <h1>Perfect English</h1>
+    <div class="stats"><span id="streak"></span><span id="doneCount"></span></div>
+  </header>
+
+  <div class="layout">
+    <aside id="sidebar" class="sidebar">
+      <div class="progress"><div id="progressBar"></div></div>
+      <nav id="dayList"></nav>
+    </aside>
+    <main id="main"></main>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+  <script src="data.js"></script>
+  <script src="lessons_core.js"></script>
+  <script src="lessons1.js"></script>
+  <script src="lessons2.js"></script>
+  <script src="lessons3.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
