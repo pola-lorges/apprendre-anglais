@@ -7,7 +7,7 @@
 
   // ---------- Progression (localStorage) ----------
   const KEY = "perfect-english-v1";
-  const store = Object.assign({ done: {}, scores: {}, known: {}, active: [], evals: {} }, JSON.parse(localStorage.getItem(KEY) || "{}"));
+  const store = Object.assign({ done: {}, scores: {}, known: {}, active: [], evals: {}, tabs: {} }, JSON.parse(localStorage.getItem(KEY) || "{}"));
   const save = () => localStorage.setItem(KEY, JSON.stringify(store));
   const today = () => new Date().toISOString().slice(0, 10);
   function touch() {
@@ -179,13 +179,36 @@
         <h2>Jour ${day.n} <small class="sub">· ${esc(L.theme)}</small></h2>
         ${store.done[day.n] ? '<span class="chip ok">✓ Jour validé</span>' : `<span class="chip">Réussis les exercices à ${PASS} % pour valider</span>`}
       </div>
-      <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === tab ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+      <div class="day-progress"><div class="bar"><div id="dayBar"></div></div><span id="dayProgText"></span></div>
+      <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === tab ? "active" : ""}" data-tab="${k}">${l}<span class="tick"></span></button>`).join("")}</div>
       <div id="content"></div>
       ${stepNav()}`;
     bindStepNav();
     document.querySelectorAll(".tab").forEach((b) => (b.onclick = () => { audio.pause(); onTick = null; tab = b.dataset.tab; renderDay(); }));
     const render = { lesson: renderLesson, quiz: renderDayQuiz, listen: renderListen, cloze: renderCloze, order: renderOrder, dictation: renderDictation, vocab: renderVocab }[tab];
     render(day, $("#content"));
+    refreshProgress();
+  }
+
+  // Onglet terminé : leçon lue, exercices réussis, écoute lancée, entraînement vérifié, vocabulaire utilisé.
+  function markTab(key) {
+    const k = `${current}:${key}`;
+    if (store.tabs[k]) return;
+    store.tabs[k] = true; save(); refreshProgress();
+  }
+  function refreshProgress() {
+    if (view.type !== "day" || !$("#dayBar")) return;
+    const day = DAYS[current - 1];
+    const tabs = day.kind === "workbook" ? WB_TABS : TABS;
+    let n = 0;
+    document.querySelectorAll(".tab").forEach((b) => {
+      const ok = !!store.tabs[`${current}:${b.dataset.tab}`];
+      b.classList.toggle("complete", ok);
+      b.querySelector(".tick").textContent = ok ? " ✓" : "";
+      if (ok) n++;
+    });
+    $("#dayBar").style.width = `${(n / tabs.length) * 100}%`;
+    $("#dayProgText").textContent = n === tabs.length ? "Tous les onglets sont terminés ✓" : `${n}/${tabs.length} onglets terminés`;
   }
 
   // ---------- Leçon ----------
@@ -224,6 +247,7 @@
     $("#toListen").onclick = () => { tab = "listen"; renderDay(); };
     $("#toQuiz").onclick = () => { tab = "quiz"; renderDay(); };
     touch();
+    markTab("lesson");
   }
 
   // ---------- Moteur de quiz (exercices + évaluations) ----------
@@ -278,6 +302,7 @@
       onSubmit(pct, _w, after) {
         store.scores[`${day.n}:quiz`] = Math.max(store.scores[`${day.n}:quiz`] || 0, pct);
         touch();
+        if (pct >= PASS) markTab("quiz");
         const passed = pct >= PASS, was = store.done[day.n];
         if (passed) store.done[day.n] = true;
         save(); renderStats(); renderSidebar();
@@ -344,7 +369,7 @@
   }
   function saveScore(key, pct) {
     store.scores[`${current}:${key}`] = Math.max(store.scores[`${current}:${key}`] || 0, pct);
-    touch(); save();
+    touch(); save(); markTab(key);
   }
   const bestScore = (key) => (store.scores[`${current}:${key}`] != null ? ` · meilleur score : ${store.scores[`${current}:${key}`]}%` : "");
 
@@ -401,7 +426,7 @@
       pp.onclick = () => {
         if (playing()) { audio.pause(); return; }
         if (isThis()) { stopAt = null; loopFrom = null; audio.play(); } else playTrack(tr);
-        audio.playbackRate = rate; touch();
+        audio.playbackRate = rate; touch(); markTab("listen");
       };
       seek.oninput = () => {
         if (!isThis()) { audio.src = tr.src; currentSrc = tr.src; audio.addEventListener("loadedmetadata", () => (audio.currentTime = (seek.value / 1000) * audio.duration), { once: true }); }
@@ -414,7 +439,7 @@
       const h = $("#hide"); if (h) h.onclick = () => { hidden = !hidden; draw(); };
       box.querySelectorAll(".seg").forEach((el) => (el.onclick = () => {
         const s = tr.segs[+el.dataset.i];
-        playRange(tr, s.t, s.e, loop); audio.playbackRate = rate; touch();
+        playRange(tr, s.t, s.e, loop); audio.playbackRate = rate; touch(); markTab("listen");
       }));
     };
     draw();
@@ -609,8 +634,9 @@
       </div>`;
     box.querySelectorAll(".vcard").forEach((c) => {
       const v = freq.get(c.dataset.w);
-      c.querySelector(".play").onclick = () => { playRange(v.tr, v.seg.t, v.seg.e); audio.playbackRate = 1; touch(); };
+      c.querySelector(".play").onclick = () => { playRange(v.tr, v.seg.t, v.seg.e); audio.playbackRate = 1; touch(); markTab("vocab"); };
       c.querySelector(".know").onclick = (e) => {
+        markTab("vocab");
         if (store.known[v.w]) delete store.known[v.w]; else store.known[v.w] = true;
         save();
         c.classList.toggle("known", !!store.known[v.w]);
@@ -619,6 +645,7 @@
       const panel = c.querySelector(".tr-panel");
       c.querySelector(".tr").onclick = async () => {
         panel.hidden = !panel.hidden;
+        markTab("vocab");
         if (panel.hidden || panel.dataset.loaded) return;
         panel.dataset.loaded = "1";
         panel.textContent = "Chargement…";
