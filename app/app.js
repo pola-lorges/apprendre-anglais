@@ -200,6 +200,12 @@
         const example = section && section.ex.find(([english]) => wordPattern.test(english));
         entries.push({ word, translation, day: day.n, theme: lesson.theme, goal: lesson.goal, section, example });
       });
+      lesson.sections.forEach((section) => section.ex.forEach(([word, translation]) => {
+        const key = `${word.toLowerCase()}|${translation.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        entries.push({ word, translation, day: day.n, theme: lesson.theme, goal: lesson.goal, section, example: [word, translation], phrase: true });
+      }));
     });
     const translations = [...new Set(entries.map((entry) => entry.translation))];
     if (translations.length < 2) {
@@ -207,18 +213,26 @@
       $("#gameBack").onclick = () => goStep(STEPS.findIndex((step) => step.type === "day" && step.n === current));
       return;
     }
-    const questions = shuffle(entries, Math.random).slice(0, 10);
+    const phrases = shuffle(entries.filter((entry) => entry.phrase), Math.random);
+    const words = shuffle(entries.filter((entry) => !entry.phrase), Math.random);
+    const questions = shuffle([...phrases.slice(0, 4), ...words.slice(0, 6), ...phrases.slice(4), ...words.slice(6)].slice(0, 10), Math.random);
     let index = 0, correct = 0;
     function drawQuestion() {
       const entry = questions[index];
       const validTranslations = entries.filter((item) => item.word.toLowerCase() === entry.word.toLowerCase()).map((item) => item.translation);
-      const choices = shuffle([entry.translation, ...shuffle(translations.filter((translation) => !validTranslations.includes(translation)), Math.random).slice(0, 3)], Math.random);
+      const similarTranslations = [...new Set(entries.filter((item) => !!item.phrase === !!entry.phrase).map((item) => item.translation))];
+      const distractors = shuffle(similarTranslations.filter((translation) => !validTranslations.includes(translation)), Math.random);
+      const fallback = shuffle(translations.filter((translation) => !validTranslations.includes(translation) && !distractors.includes(translation)), Math.random);
+      const choices = shuffle([entry.translation, ...distractors, ...fallback].slice(0, 4), Math.random);
       $("#main").innerHTML = `<div class="day-head"><h2>Jeu de vocabulaire</h2><span class="chip">Question ${index + 1} / ${questions.length} · ${correct} bonne${correct > 1 ? "s" : ""} réponse${correct > 1 ? "s" : ""}</span></div>
         <div class="card"><p class="hint">Choisis la traduction française de ce mot ou de cette expression.</p>
-          <h2>${esc(entry.word)}</h2><form id="gameForm"><fieldset class="opts" style="border:0;padding:0;margin:12px 0"><legend>Traduction</legend>
+          <h2>${esc(entry.word)}</h2>
+          ${window.speechSynthesis && window.SpeechSynthesisUtterance ? '<p><button class="btn small" id="gameListen" type="button" title="Écouter en anglais" aria-label="Écouter en anglais">🔊 Écouter</button></p>' : '<p class="hint">La lecture vocale n’est pas disponible dans ce navigateur.</p>'}
+          <form id="gameForm"><fieldset class="opts" style="border:0;padding:0;margin:12px 0"><legend>Traduction</legend>
             ${choices.map((choice, choiceIndex) => `<label class="opt"><input type="radio" name="translation" value="${choiceIndex}" required><span>${esc(choice)}</span></label>`).join("")}
           </fieldset><button class="btn primary" type="submit">Vérifier</button></form><div id="gameResult" aria-live="polite"></div></div>
         <button class="btn" id="gameBack">Retour aux leçons</button>`;
+      if ($("#gameListen")) $("#gameListen").onclick = () => speak(entry.word);
       $("#gameBack").onclick = () => goStep(STEPS.findIndex((step) => step.type === "day" && step.n === current));
       $("#gameForm").onsubmit = (event) => {
         event.preventDefault();
