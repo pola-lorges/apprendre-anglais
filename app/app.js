@@ -129,6 +129,7 @@
 
   function renderSidebar() {
     const cur = viewIndex();
+    $("#gameNav").classList.toggle("active", view.type === "game");
     $("#dayList").innerHTML = STEPS.map((s, i) => {
       const locked = isLocked(s);
       if (s.type === "day") {
@@ -169,7 +170,85 @@
     $("#nextStep").onclick = () => goStep(i + 1);
   }
 
-  function renderView() { if (view.type === "day") renderDay(); else renderEval(); }
+  function renderView() {
+    if (view.type === "day") renderDay();
+    else if (view.type === "game") renderGame();
+    else renderEval();
+  }
+
+  function goGame() {
+    audio.pause(); onTick = null;
+    view = { type: "game" };
+    history.replaceState(null, "", "#game");
+    $("#sidebar").classList.remove("open");
+    renderSidebar(); renderGame();
+    window.scrollTo(0, 0);
+  }
+
+  function renderGame() {
+    const entries = [];
+    const seen = new Set();
+    DAYS.filter((day) => !isLocked({ type: "day", n: day.n })).forEach((day) => {
+      const lesson = LESSONS[day.n];
+      lesson.vocab.forEach(([word, translation]) => {
+        const key = `${word.toLowerCase()}|${translation.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const wordPattern = new RegExp(`(?:^|[^a-z])${escapedWord}(?=$|[^a-z])`, "i");
+        const section = lesson.sections.find((item) => wordPattern.test(new DOMParser().parseFromString(item.p, "text/html").body.textContent) || item.ex.some(([english]) => wordPattern.test(english)));
+        const example = section && section.ex.find(([english]) => wordPattern.test(english));
+        entries.push({ word, translation, day: day.n, theme: lesson.theme, goal: lesson.goal, section, example });
+      });
+    });
+    const translations = [...new Set(entries.map((entry) => entry.translation))];
+    if (translations.length < 2) {
+      $("#main").innerHTML = `<div class="card"><h2>Jeu de vocabulaire</h2><p>Il n'y a pas encore assez de vocabulaire disponible pour jouer.</p><button class="btn" id="gameBack">Retour aux leçons</button></div>`;
+      $("#gameBack").onclick = () => goStep(STEPS.findIndex((step) => step.type === "day" && step.n === current));
+      return;
+    }
+    const questions = shuffle(entries, Math.random).slice(0, 10);
+    let index = 0, correct = 0;
+    function drawQuestion() {
+      const entry = questions[index];
+      const validTranslations = entries.filter((item) => item.word.toLowerCase() === entry.word.toLowerCase()).map((item) => item.translation);
+      const choices = shuffle([entry.translation, ...shuffle(translations.filter((translation) => !validTranslations.includes(translation)), Math.random).slice(0, 3)], Math.random);
+      $("#main").innerHTML = `<div class="day-head"><h2>Jeu de vocabulaire</h2><span class="chip">Question ${index + 1} / ${questions.length} · ${correct} bonne${correct > 1 ? "s" : ""} réponse${correct > 1 ? "s" : ""}</span></div>
+        <div class="card"><p class="hint">Choisis la traduction française de ce mot ou de cette expression.</p>
+          <h2>${esc(entry.word)}</h2><form id="gameForm"><fieldset class="opts" style="border:0;padding:0;margin:12px 0"><legend>Traduction</legend>
+            ${choices.map((choice, choiceIndex) => `<label class="opt"><input type="radio" name="translation" value="${choiceIndex}" required><span>${esc(choice)}</span></label>`).join("")}
+          </fieldset><button class="btn primary" type="submit">Vérifier</button></form><div id="gameResult" aria-live="polite"></div></div>
+        <button class="btn" id="gameBack">Retour aux leçons</button>`;
+      $("#gameBack").onclick = () => goStep(STEPS.findIndex((step) => step.type === "day" && step.n === current));
+      $("#gameForm").onsubmit = (event) => {
+        event.preventDefault();
+        const selected = $("#gameForm input:checked");
+        if (!selected) return;
+        const good = choices[Number(selected.value)] === entry.translation;
+        if (good) correct++;
+        touch();
+        $("#gameForm").querySelectorAll("input, button").forEach((element) => { element.disabled = true; });
+        $("#gameForm").querySelectorAll(".opt").forEach((label) => {
+          const input = label.querySelector("input");
+          if (choices[Number(input.value)] === entry.translation) label.classList.add("ok");
+          else if (input.checked) label.classList.add("bad");
+        });
+        $("#gameResult").innerHTML = `<p class="score ${good ? "pass" : "fail"}">${good ? "Bonne réponse !" : "À revoir."} ${esc(entry.word)} : ${esc(entry.translation)}</p>
+          <p><strong>Jour ${entry.day} · ${esc(entry.theme)}</strong><br>${esc(entry.goal)}</p>
+          ${entry.section ? `<p><strong>${esc(entry.section.h)}</strong><br>${entry.section.p}</p>` : ""}
+          ${entry.example ? `<div class="example"><div><div class="en">${esc(entry.example[0])}</div><div class="fr">${esc(entry.example[1])}</div></div></div>` : ""}
+          <p><button class="btn primary" id="gameNext">${index + 1 === questions.length ? "Voir le résultat" : "Mot suivant"}</button></p>`;
+        $("#gameNext").onclick = () => {
+          index++;
+          if (index < questions.length) { drawQuestion(); return; }
+          $("#main").innerHTML = `<div class="card"><h2>Partie terminée</h2><p class="score">${correct} / ${questions.length} bonnes réponses</p><p><button class="btn primary" id="gameRestart">Nouvelle partie</button> <button class="btn" id="gameBack">Retour aux leçons</button></p></div>`;
+          $("#gameRestart").onclick = renderGame;
+          $("#gameBack").onclick = () => goStep(STEPS.findIndex((step) => step.type === "day" && step.n === current));
+        };
+      };
+    }
+    drawQuestion();
+  }
 
   function renderDay() {
     const day = DAYS[current - 1], L = LESSONS[day.n];
@@ -691,12 +770,17 @@
   }
 
   // ---------- Démarrage ----------
-  $("#dayList").addEventListener("click", (e) => { const b = e.target.closest("[data-step]"); if (b) goStep(+b.dataset.step); });
+  $("#gameNav").addEventListener("click", goGame);
+  $("#dayList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-step]"); if (b) goStep(+b.dataset.step);
+  });
   $("#menuBtn").onclick = () => $("#sidebar").classList.toggle("open");
   const wanted = STEPS.findIndex((s) => `#${stepKey(s)}` === location.hash);
   const firstTodo = STEPS.findIndex((s) => !isLocked(s) && (s.type === "day" ? !store.done[s.n] : !evalPassed(s.id)));
   let start = wanted >= 0 && !isLocked(STEPS[wanted]) ? wanted : Math.max(firstTodo, 0);
   const s0 = STEPS[start];
   if (s0.type === "day") { current = s0.n; view = { type: "day", n: s0.n }; } else view = { type: "eval", id: s0.id };
-  renderStats(); renderSidebar(); renderView();
+  renderStats();
+  if (location.hash === "#game") { view = { type: "game" }; }
+  renderSidebar(); renderView();
 })();
