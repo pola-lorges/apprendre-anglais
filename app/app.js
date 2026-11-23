@@ -217,13 +217,54 @@
     const words = shuffle(entries.filter((entry) => !entry.phrase), Math.random);
     const questions = shuffle([...phrases.slice(0, 4), ...words.slice(0, 6), ...phrases.slice(4), ...words.slice(6)].slice(0, 10), Math.random);
     let index = 0, correct = 0;
+
+    function textScore(a, b) {
+      const clean = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      const aw = clean(a).split(" ").filter((word) => word.length > 2);
+      const bw = clean(b).split(" ").filter((word) => word.length > 2);
+      if (!aw.length || !bw.length) return 0;
+      let common = 0;
+      aw.forEach((word) => {
+        if (bw.includes(word)) common += 3;
+        else if (bw.some((x) => x.startsWith(word) || word.startsWith(x))) common += 1;
+      });
+      const lengthPenalty = Math.min(aw.join("").length, bw.join("").length) / Math.max(aw.join("").length, bw.join("").length);
+      return common + lengthPenalty;
+    }
+
+    function getCloseChoices(entry) {
+      const validTranslations = entries.filter((item) => item.word.toLowerCase() === entry.word.toLowerCase()).map((item) => item.translation);
+      const pool = [...new Set(entries
+        .filter((item) => !validTranslations.includes(item.translation))
+        .filter((item) => !!item.phrase === !!entry.phrase)
+        .map((item) => item.translation))];
+
+      const ranked = pool.map((translation) => {
+        const other = entries.find((item) => item.translation === translation);
+        let score = textScore(entry.translation, translation);
+        if (other) {
+          if (other.day === entry.day) score += 12;
+          else if (Math.abs(other.day - entry.day) === 1) score += 6;
+          if (other.section && entry.section && other.section.h === entry.section.h) score += 7;
+          if (other.theme === entry.theme) score += 5;
+          const entryWords = entry.translation.split(/\s+/).filter((word) => word.length > 3);
+          const otherWords = translation.split(/\s+/).filter((word) => word.length > 3);
+          if (entryWords.some((word) => otherWords.includes(word))) score += 6;
+        }
+        return { translation, score };
+      }).sort((a, b) => b.score - a.score);
+
+      let distractors = ranked.slice(0, 3).map((item) => item.translation);
+      if (distractors.length < 3) {
+        const fallback = shuffle(translations.filter((translation) => !validTranslations.includes(translation) && !distractors.includes(translation)), Math.random);
+        distractors.push(...fallback.slice(0, 3 - distractors.length));
+      }
+      return shuffle([entry.translation, ...distractors].slice(0, 4), Math.random);
+    }
+
     function drawQuestion() {
       const entry = questions[index];
-      const validTranslations = entries.filter((item) => item.word.toLowerCase() === entry.word.toLowerCase()).map((item) => item.translation);
-      const similarTranslations = [...new Set(entries.filter((item) => !!item.phrase === !!entry.phrase).map((item) => item.translation))];
-      const distractors = shuffle(similarTranslations.filter((translation) => !validTranslations.includes(translation)), Math.random);
-      const fallback = shuffle(translations.filter((translation) => !validTranslations.includes(translation) && !distractors.includes(translation)), Math.random);
-      const choices = shuffle([entry.translation, ...distractors, ...fallback].slice(0, 4), Math.random);
+      const choices = getCloseChoices(entry);
       $("#main").innerHTML = `<div class="day-head"><h2>Jeu de vocabulaire</h2><span class="chip">Question ${index + 1} / ${questions.length} · ${correct} bonne${correct > 1 ? "s" : ""} réponse${correct > 1 ? "s" : ""}</span></div>
         <div class="card"><p class="hint">Choisis la traduction française de ce mot ou de cette expression.</p>
           <h2>${esc(entry.word)}</h2>
